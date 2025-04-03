@@ -4,9 +4,7 @@ import shutil
 
 out_folder = 'submission_material/latex_sources'
 fig_folder = 'figures'
-main_file = 'main.tex'
-bbl_file = 'main.bbl'
-glossary_file = '0_glossary.tex'
+latex_main = 'main.tex'
 glossary = {}
 shortcuts = {}
 
@@ -37,7 +35,6 @@ class GlossaryEntry:
             return self.s_long(plural)
 
     def s_short(self, plural=False):
-        self.used = True
         if plural and self.short_plural is not None:
             return self.short_plural
         return self.short + plural * 's'
@@ -89,7 +86,7 @@ def expand_line(l):
 
     if len(l) == 1:
         return l
-    if l.split()[0].startswith('%'):
+    if not l.split() or l.split()[0].startswith('%'):
         return ''
 
     if '\\acresetall' in l:
@@ -128,7 +125,7 @@ def expand_line(l):
 
 def expand_latex_rec(path):
     global glossary
-    outlines = ''
+    output_lines = ''
 
     with open(path, 'r') as infile:
         lines = infile.readlines()
@@ -138,19 +135,18 @@ def expand_latex_rec(path):
             input_path = l.split('{')[1].split('}')[0]
             if not input_path.endswith('.tex'):
                 input_path += '.tex'
-            if glossary_file in input_path:
+            if 'glossary' in input_path:
                 glossary_dict(input_path)
             else:
-                outlines += expand_latex_rec(input_path) + '\n'
+                output_lines += expand_latex_rec(input_path) + '\n'
         elif '\\includegraphics' in l:
             figure_path = l.split('{')[1].split('}')[0]
-            figure_path_pdf = figure_path.split('/')[-1].split('.')[0] + '.pdf'
-            outlines += l.replace(figure_path, figure_path_pdf)
+            output_lines += l.replace(figure_path, figure_path.split('/')[-1].split('.')[0] + '.pdf')
         elif '\\bibliography{' in l:
-            outlines += expand_latex_rec(bbl_file) + '\n'
+            output_lines += expand_latex_rec('main.bbl') + '\n'
         else:
-            outlines += expand_line(l)
-    return outlines
+            output_lines += expand_line(l)
+    return output_lines
 
 
 if __name__ == '__main__':
@@ -166,9 +162,12 @@ if __name__ == '__main__':
     for f in bst_cls:
         shutil.copy2(f, out_folder)
 
-    ## process main_file
-    outlines = expand_latex_rec(main_file)
+    ## process latex_main
+    output_lines = expand_latex_rec(latex_main)
+
+    output_lines = output_lines.replace(r'\revisionadd', '')
+
 
     ## write
-    with open(os.path.join(out_folder, main_file), 'w') as outfile:
-        outfile.write(outlines)
+    with open(os.path.join(out_folder, latex_main), 'w') as outfile:
+        outfile.write(output_lines)
