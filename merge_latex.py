@@ -1,13 +1,13 @@
 import os
 import shutil
+from PIL import Image
 
 
-out_folder = 'submission_material/latex_sources'
+out_folder = 'submission_material'
 fig_folder = 'figures'
 latex_main = 'main.tex'
 glossary = {}
 shortcuts = {}
-
 
 
 class GlossaryEntry:
@@ -141,7 +141,7 @@ def expand_latex_rec(path):
                 output_lines += expand_latex_rec(input_path) + '\n'
         elif '\\includegraphics' in l:
             figure_path = l.split('{')[1].split('}')[0]
-            output_lines += l.replace(figure_path, figure_path.split('/')[-1].split('.')[0] + '.pdf')
+            output_lines += l.replace(figure_path, figure_path.split('/')[-1].split('.')[0] + '.jpg')
         elif '\\bibliography{' in l:
             output_lines += expand_latex_rec('main.bbl') + '\n'
         else:
@@ -149,13 +149,33 @@ def expand_latex_rec(path):
     return output_lines
 
 
+def figures_jpg(dpi=200):
+    ## convert image figures to jpg
+    imgs = [os.path.join(fig_folder, f) for f in os.listdir(fig_folder) if f.endswith(('.png', 'jpg', 'jpeg'))]
+    for f_img in imgs:
+        img = Image.open(f_img).convert("RGB")
+        img.save(os.path.join(
+            out_folder,
+            os.path.splitext(f_img)[0] + '.jpg'
+        ))
+
+    ## convert pdfs figures to jpg
+    pdfs = [os.path.join(fig_folder, f) for f in os.listdir(fig_folder) if f.endswith('.pdf')]
+    for f_img in pdfs:
+        img = convert_from_path(f_img, dpi=dpi)[0]
+        img.save(os.path.join(
+            out_folder,
+            os.path.splitext(f_img)[0] + '.jpg'
+        ))
+
+    ## TODO handle svg?
+
+
 if __name__ == '__main__':
     os.makedirs(out_folder, exist_ok=True)
 
-    ## copy figures to outfolder
-    pdfs = [f for f in os.listdir(fig_folder) if f.endswith('.pdf')]
-    for f in pdfs:
-        shutil.copy2(os.path.join(fig_folder, f), out_folder)
+    ## convert figures to jpg
+    figures_jpg(dpi=300)
 
     ## copy bst and cls
     bst_cls = [f for f in os.listdir('.') if f.endswith('.bst') or f.endswith('.cls')]
@@ -164,9 +184,7 @@ if __name__ == '__main__':
 
     ## process latex_main
     output_lines = expand_latex_rec(latex_main)
-
-    output_lines = output_lines.replace(r'\revisionadd', '')
-
+    # output_lines = output_lines.replace(r'\revisionadd', '')
 
     ## write
     with open(os.path.join(out_folder, latex_main), 'w') as outfile:
