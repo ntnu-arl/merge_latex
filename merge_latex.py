@@ -7,45 +7,45 @@ from pdf2image import convert_from_path
 out_folder = 'submission_material'
 fig_folder = 'figs'
 latex_main = 'main.tex'
-glossary = {}
-shortcuts = {}
+# glossary = {}
+# shortcuts = {}
 figure_paths = []
 
 
-class GlossaryEntry:
-    def __init__(self, key):
-        self.used = False
-        self.first = None
-        self.short = None
-        self.short_plural = None
-        self.long = None
-        self.long_plural = None
+# class GlossaryEntry:
+#     def __init__(self, key):
+#         self.used = False
+#         self.first = None
+#         self.short = None
+#         self.short_plural = None
+#         self.long = None
+#         self.long_plural = None
 
-    def s(self, plural=False):
-        if not self.used:
-            return self.s_first(plural)
-        else:
-            return self.s_short(plural)
+#     def s(self, plural=False):
+#         if not self.used:
+#             return self.s_first(plural)
+#         else:
+#             return self.s_short(plural)
 
-    def s_first(self, plural=False):
-        self.used = True
-        if self.first is None:
-            return f'{self.s_long(plural)} ({self.s_short(plural)})'
-        elif self.first == 'short':
-            return self.s_short(plural)
-        elif self.first == 'long':
-            return self.s_long(plural)
+#     def s_first(self, plural=False):
+#         self.used = True
+#         if self.first is None:
+#             return f'{self.s_long(plural)} ({self.s_short(plural)})'
+#         elif self.first == 'short':
+#             return self.s_short(plural)
+#         elif self.first == 'long':
+#             return self.s_long(plural)
 
-    def s_short(self, plural=False):
-        if plural and self.short_plural is not None:
-            return self.short_plural
-        return self.short + plural * 's'
+#     def s_short(self, plural=False):
+#         if plural and self.short_plural is not None:
+#             return self.short_plural
+#         return self.short + plural * 's'
 
-    def s_long(self, plural=False):
-        self.used = True
-        if plural and self.long_plural is not None:
-            return self.long_plural
-        return self.long + plural * 's'
+#     def s_long(self, plural=False):
+#         self.used = True
+#         if plural and self.long_plural is not None:
+#             return self.long_plural
+#         return self.long + plural * 's'
 
 
 # def glossary_dict(path: str):
@@ -83,13 +83,13 @@ class GlossaryEntry:
 #         glossary[key].used = False
 
 
-def expand_line(l: str):
-    global glossary, shortcuts
+# def expand_line(l: str):
+#     global glossary, shortcuts
 
-    if len(l) == 1:
-        return l
-    if not l.split() or l.split()[0].startswith('%'):
-        return ''
+#     if len(l) == 1:
+#         return l
+#     if not l.split() or l.split()[0].startswith('%'):
+#         return ''
 
     # print(l)
 
@@ -124,7 +124,7 @@ def expand_line(l: str):
     #     elif command in ['\\aclp', '\\acpl']:
     #         expanded = glossary[key].s_long(plural=True)
         # l = l.replace(command +'{' + key + '}', expanded)
-    return l
+    # return l
 
 
 def expand_latex_rec(path: str):
@@ -145,9 +145,19 @@ def expand_latex_rec(path: str):
                 input_path = input_path.with_suffix('.tex')
             output_lines += expand_latex_rec(input_path) + '\n'
         elif r'\includegraphics' in l:
-            figure_path = Path(l.split('{')[1].split('}')[0])
+            start = l.find('\\includegraphics')
+            brace_start = l.find('{', start)
+            brace_end = l.find('}', brace_start)
+
+            figure_path = Path(l[brace_start + 1:brace_end])
             figure_paths.append(figure_path)
-            output_lines += l.replace(figure_path.as_posix(), figure_path.stem + '.jpg')
+
+            output_figure_name = figure_path.stem + '.jpg'
+            output_lines += (
+                l[:brace_start + 1]
+                + output_figure_name
+                + l[brace_end:]
+            )
         elif r'\bibliography{' in l:
             output_lines += expand_latex_rec('main.bbl') + '\n'
         else:
@@ -194,7 +204,7 @@ if __name__ == '__main__':
     output_lines = expand_latex_rec(latex_main)
 
     ## convert figures to jpg
-    # figures_jpg(dpi=300)
+    figures_jpg(dpi=300)
 
     ## write
     with (out_folder / latex_main).open('w') as outfile:
